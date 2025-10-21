@@ -1,0 +1,16 @@
+{
+  "name": "github-workflow-sandbox",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@aftab97.github.com:aftab97/GITHUB-WORKFLOW-SANDBOX.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

@@ -1,0 +1,18 @@
+name: 'Get latest GCS dist version'
+description: 'Lists objects in a GCS bucket prefix (dist/index.v*.html) and returns the highest vN as tag_name (or v0)'
+inputs:
+  bucket:
+    description: 'GCS bucket name (no gs:// prefix). Example: gcs_app_artifact_bucket_uat'
+    required: true
+  prefix:
+    description: 'Object prefix inside the bucket. Example: dist/index.v'
+    required: true
+  gcp_key:
+    description: 'Service account JSON (string). Pass via workflow: ${{ secrets.YOUR_SECRET }}'
+    required: true
+outputs:
+  tag_name:
+    description: 'Latest tag found in the bucket (vN) or v0 if none'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

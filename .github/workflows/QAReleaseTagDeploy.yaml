@@ -1,0 +1,39 @@
+#
+# Creates a github release
+# when anything is merged to main
+#
+# Tags the release number.
+# Generates a changelog from the merge commits.
+# (TBA) Notifies Teams channels once that the release is created.
+#
+
+name: (QA) Create Release Tag & Deploy
+
+on:
+  push:
+    branches:
+      - 'main'
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: read
+  id-token: 'write'
+
+jobs:
+  build:
+    name: '🚀 Release'
+    runs-on: ubuntu-latest
+    if: |
+      !contains(github.event.head_commit.message, 'revert') &&
+      !contains(github.event.head_commit.message, 'hotfix')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          # registry-url: https://registry.npmjs.org
+          # cache: pnpm
+     

@@ -1,0 +1,122 @@
+name: Create or Update Feature Pull Request
+
+on:
+  push:
+    branches:
+      - 'neo3-ui/DC*'
+      - 'neo3-ui/dc*'
+
+jobs:
+  pull:
+    name: '🚀 PR'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      repository-projects: read
+    steps:
+      - name: '📥 Check-out'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: '🛎️ Set Node Version'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: '💻 Install and Build Feature Branch Check Action'
+        run: npm install && npm run build
+        working-directory: ./packages/tools/feature-branch-check
+
+      - name: '💻 Extract Branch Name'
+        shell: bash
+        run: echo "branch=$(echo ${GITHUB_REF#refs/heads/})" >> $GITHUB_OUTPUT
+        id: extract_branch
+
+      - name: '👍 PR Check'
+        id: 'pr-check'
+        uses: ./packages/tools/feature-branch-check
+        with:
+          branch: ${{ steps.extract_branch.outputs.branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: '💻 Kebab-Case Branch Name'
+        shell: bash
+        run: echo "branch=$(echo ${GITHUB_REF#refs/heads/} | tr '_' '-')" >> $GITHUB_OUTPUT
+        id: kebab_case_branch
+
+      - name: '💻 JIRA Friendly Branch Name'
+        shell: bash
+        run: echo "branch=$(echo ${GITHUB_REF#refs/heads/} | sed 's/^neo3-ui\/\(DC[0-9]\{4\}-[0-9]\{1,\}\).*/\1/I')" >> $GITHUB_OUTPUT
+        id: jira_branch
+
+      - name: '💻 Get PR Body'
+        id: pr_body
+        shell: bash
+        run: |
+          markdown='
+          ### Link to View / Share Work:
+          
+          Link to Work: [https://neo-dev.capgemini.com/?branch=${{ steps.jira_branch.outputs.branch }}](https://neo-dev.capgemini.com/?branch=${{ steps.jira_branch.outputs.branch }})
+          Link to Jira: [${{ steps.jira_branch.outputs.branch }}](https://e-3d-dc1.capgemini.com/jira/browse/${{ steps.jira_branch.outputs.branch }})
+
+          ### Description of the changes made:
+
+          _....._
+
+          ### Screenshots (before/after):
+
+          _....._
+
+          ### Testing Instructions:
+
+          _....._
+
+
+          ### Definition of Done
+
+          #### I have:
+
+          - [ ] Considered if adding/updating a test is needed
+          - [ ] Made sure my code is responsive (mobile and tablet)
+          - [ ] Tested my code in dark and light mode
+          - [ ] Considered if I should update or add anything to Storybook
+
+
+          #### Must check the latest version of:
+
+          - [ ] Google Chrome
+          - [ ] Firefox
+          - [ ] Safari
+          - [ ] Edge'
+
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "body<<$EOF" >> $GITHUB_OUTPUT
+          echo "$(printf '%s\n' "$markdown")" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
+
+      - name: '📁 Create or Update Pull Request'
+        id: plat-pull-request
+        run: |
+          PR_EXISTS=$(gh pr list --head ${{ steps.extract_branch.outputs.branch }} --state open --json url --jq .[].url)
+
+          if [ -z "$PR_EXISTS" ]; then
+            echo "No existing PR found, creating a new one..."
+            gh pr create -B 'sit' -H ${{ steps.extract_branch.outputs.branch }} --title '${{ steps.extract_branch.outputs.branch }}' -b '${{ steps.pr_body.outputs.body }}' -a '${{ github.event.pusher.name }}' -d
+          else
+            echo "Existing PR found, updating it..."
+
+            # Fetch the current PR title and body
+            PR_TITLE=$(gh pr view $PR_EXISTS --json title -q .title)
+            PR_BODY=$(gh pr view $PR_EXISTS --json body -q .body)
+
+            # Fallback to defaults if no manual changes
+            PR_TITLE="${PR_TITLE:-${{ steps.extract_branch.outputs.branch }}}"
+            PR_BODY="${PR_BODY:-${{ steps.pr_body.outputs.body }}}"
+
+            # Update the PR with the fetched or default title/body
+            gh pr edit $PR_EXISTS --title "$PR_TITLE" -b "$PR_BODY"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

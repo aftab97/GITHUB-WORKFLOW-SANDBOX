@@ -1,0 +1,68 @@
+name: Continuous Integration (CI) - neo3-ui
+
+on:
+  push:
+    branches:
+      - 'neo3-ui/DC*'
+      - 'neo3-ui/dc*'
+  pull_request:
+    branches:
+      - sit
+    types:
+      - opened
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    # required for 'google-github-actions/auth@v2' to run
+    permissions:
+      contents: 'write'
+      id-token: 'write'
+    steps:
+      - name: Extract branch name with JIRA pattern
+        shell: bash
+        run: |
+          # Extract branch name
+          branch_name="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+
+          # Apply regex to extract JIRA ticket format (e.g., DC1234-12)
+          # Updated regex for the 'neo3-ui/' prefix and JIRA ticket ID format
+          branch_jira=$(echo "$branch_name" | sed 's/^neo3-ui\/\(DC[0-9]\{4\}-[0-9]\{1,\}\).*/\1/I')
+
+          # Output the branch JIRA ticket ID
+          echo "branch=$branch_jira" >> $GITHUB_OUTPUT
+
+          # Output full branch
+          echo "full_branch=$branch_name" >> $GITHUB_OUTPUT
+
+        id: extract_branch
+
+      - name: Extract to lowercase
+        id: toLowerCase
+        run: echo "::set-output name=lowerCaseValue::${UPPERCASE_VAR,,}"
+        env:
+          UPPERCASE_VAR: ${{ steps.extract_branch.outputs.branch }}
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm manually
+        run: |
+          npm install -g pnpm
+          echo "pnpm version: $(pnpm --version)"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          # registry-url: https://registry.npmjs.org
+          # cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+    

@@ -1,0 +1,15 @@
+name: 'feature-branch-check'
+description: 'A GitHub Action that returns if a PR already exists'
+inputs:
+  token:
+    description: 'A token with access to your repository scoped in as a secret'
+    required: true
+  branch:
+    description: 'Current branch being pushed'
+    required: true
+outputs:
+  create_pr:
+    description: 'If a PR should be created for this branch'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

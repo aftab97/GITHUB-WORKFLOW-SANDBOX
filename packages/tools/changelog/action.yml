@@ -1,0 +1,15 @@
+name: 'get-fusion-changelog'
+description: 'A GitHub Action that generates a changelog based on git log'
+inputs:
+  token:
+    description: 'A token with access to your repository scoped in as a secret'
+    required: true
+  log:
+    description: 'The git log between two branches from which to generate the changelog'
+    required: true
+outputs:
+  changelog:
+    description: 'Changelog of merges in pr'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

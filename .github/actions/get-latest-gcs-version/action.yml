@@ -1,0 +1,39 @@
+name: 'Get latest GCS dist version'
+description: 'Lists objects in a GCS bucket prefix (dist/index.v*.html) and returns the highest vN as tag_name (or v0)'
+inputs:
+  bucket:
+    description: 'GCS bucket name (no gs:// prefix). Example: gcs_app_artifact_bucket_uat'
+    required: true
+  prefix:
+    description: 'Object prefix inside the bucket. Example: dist/index.v'
+    required: true
+  gcp_key:
+    description: 'Service account JSON (string). Provide from the workflow via with: gcp_key: ${{ secrets.YOUR_SECRET }}'
+    required: true
+outputs:
+  tag_name:
+    description: 'Latest tag found in the bucket (vN) or v0 if none'
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install action dependencies (action folder)
+      shell: bash
+      run: |
+        set -euo pipefail
+        # install into the action folder so the root repo package.json is not read
+        npm install --prefix "$GITHUB_ACTION_PATH" --legacy-peer-deps
+
+    - name: Run get-latest-gcs-version script
+      shell: bash
+      env:
+        GCP_KEY: ${{ inputs.gcp_key }}
+      run: |
+        set -euo pipefail
+        node "$GITHUB_ACTION_PATH/index.js" "${{ inputs.bucket }}" "${{ inputs.prefix }}" | tee latest.txt
+        tag=$(cat latest.txt | tr -d '\r\n')
+        echo "tag_name=$tag" >> $GITHUB_OUTPUT
