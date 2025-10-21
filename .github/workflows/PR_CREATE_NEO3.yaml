@@ -118,5 +118,5 @@ jobs:
             # Update the PR with the fetched or default title/body
             gh pr edit $PR_EXISTS --title "$PR_TITLE" -b "$PR_BODY"
           fi
-          env:
-            GITHUB_TOKEN: ${{ secrets.PAT }}
+            env:
+              GH_TOKEN: ${{ github.token }}
