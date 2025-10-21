@@ -135,8 +135,8 @@ jobs:
         run: |
           echo "pr_url=${{ steps.create_pr.outputs.pr_url || steps.find_existing.outputs.pr_url }}" >> $GITHUB_OUTPUT
 
-      - name: '📝 Update Pull Request Description'
-        run: |
-          gh pr edit "${{ steps.ensure_pr_url.outputs.pr_url }}" --body-file pr_body.md
-        env:
-          GH_TOKEN: ${{ secrets.AFTAB }}
+      # - name: '📝 Update Pull Request Description'
+      #   run: |
+      #     gh pr edit "${{ steps.ensure_pr_url.outputs.pr_url }}" --body-file pr_body.md
+      #   env:
+      #     GH_TOKEN: ${{ secrets.AFTAB }}
