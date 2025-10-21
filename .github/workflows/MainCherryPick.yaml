@@ -1,0 +1,162 @@
+name: Cherry Pick (Main)
+# cherry pick 2
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to cherry-pick from sit to main (optional when triggered by merged PR)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  cherry-pick-to-main:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'sit') ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout repo (full)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
+          gh --version
+
+      - name: Determine PR number and trigger reason
+        id: prinfo
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "PR=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+            echo "TRIGGER=pr_event" >> $GITHUB_ENV
+          else
+            echo "PR=${{ github.event.inputs.pr_number }}" >> $GITHUB_ENV
+            echo "TRIGGER=manual" >> $GITHUB_ENV
+          fi
+          echo "PR=${PR}" 
+        env:
+          PR: ${{ github.event.inputs.pr_number }}
+
+      - name: Validate label when triggered by PR
+        if: ${{ env.TRIGGER == 'pr_event' }}
+        id: check_label
+        run: |
+          # require label 'cherry-to-main' on the merged PR to proceed automatically
+          labels=$(jq -r '.pull_request.labels[].name' "$GITHUB_EVENT_PATH" | paste -sd "," - || true)
+          echo "labels=$labels" >> $GITHUB_OUTPUT
+          if echo "$labels" | grep -qi "cherry-to-main"; then
+            echo "proceed=true" >> $GITHUB_OUTPUT
+          else
+            echo "proceed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Exit if label not present
+        if: ${{ env.TRIGGER == 'pr_event' && steps.check_label.outputs.proceed != 'true' }}
+        run: |
+          echo "Merged PR does not have label 'cherry-to-main' — skipping automated cherry-pick."
+          exit 0
+
+      - name: Gather commits from PR
+        id: commits
+        env:
+          GITHUB_TOKEN: ${{ secrets.AFTAB }}
+        run: |
+          PR_NUM=${{ env.PR }}
+          if [ -z "$PR_NUM" ]; then
+            echo "No PR number provided" >&2
+            exit 1
+          fi
+          # List commit SHAs in order
+          shas=$(gh pr view "$PR_NUM" --repo "${{ github.repository }}" --json commits --jq '.commits[].oid')
+          echo "commits<<EOF" >> $GITHUB_OUTPUT
+          echo "$shas" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Prepare authenticated origin for pushing
+        env:
+          GITHUB_TOKEN: ${{ secrets.AFTAB }}
+        run: |
+          # configure remote URL for pushing with GITHUB_TOKEN
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
+          # fetch main
+          git fetch origin main:main
+
+      - name: Create backport branch and attempt cherry-pick
+        id: backport
+        env:
+          GITHUB_TOKEN: ${{ secrets.AFTAB }}
+        run: |
+          set -euo pipefail
+          PR_NUM=${{ env.PR }}
+          COMMITS=$(echo "${{ steps.commits.outputs.commits }}" | tr -d '\r')
+          # use the first commit short sha for deterministic branch name
+          first_sha=$(echo "$COMMITS" | head -n1)
+          short=$(echo "$first_sha" | cut -c1-7)
+          bp_branch="backport/main/pr${PR_NUM}-${short}"
+
+          echo "Creating branch $bp_branch from origin/main"
+          git checkout -b "$bp_branch" main
+
+          CHERRY_FAILED=0
+          for c in $COMMITS; do
+            echo "Cherry-picking commit $c"
+            if ! git cherry-pick -x "$c"; then
+              echo "Conflict when cherry-picking $c"
+              CHERRY_FAILED=1
+              break
+            fi
+          done
+
+          if [ "$CHERRY_FAILED" -eq 1 ]; then
+            echo "Cherry-pick failed — aborting and preparing manual instructions."
+            git cherry-pick --abort || true
+            # Clean up local branch
+            git checkout main
+            git branch -D "$bp_branch" || true
+
+            # Create a comment on the original PR to notify and include patch info
+            NOTE="Automated cherry-pick from sit -> main for PR #${PR_NUM} failed due to conflicts.\n\nPlease perform a manual backport using these steps:\n\n1. git fetch origin\n2. git checkout -b backport/main/pr${PR_NUM}-${short} origin/main\n3. git cherry-pick -x <commit-sha>  # repeat for commits listed below\n4. Resolve conflicts, git add ., git cherry-pick --continue\n5. Run tests, push branch, create PR to main\n\nCommits to cherry-pick:\n"
+            for c in $COMMITS; do
+              info=$(git show --no-patch --format="%h - %s (%an)" "$c" 2>/dev/null || echo "$c")
+              NOTE="${NOTE}- ${info}\n"
+            done
+
+            gh pr comment "$PR_NUM" --body "$NOTE" --repo "${{ github.repository }}"
+            gh issue create --title "[backport needed] PR #${PR_NUM} -> main" --body "$NOTE" --label "backport-needed" --repo "${{ github.repository }}"
+            echo "conflict=true" >> $GITHUB_OUTPUT
+          else
+            # push branch and create PR
+            git push -u origin "$bp_branch"
+            PR_TITLE="[backport] PR #${PR_NUM} -> main"
+            PR_BODY="Automated cherry-pick of PR #${PR_NUM} (from sit) into \`main\`.\n\nCommits:\n"
+            for c in $COMMITS; do
+              msg=$(git show --no-patch --format="%s" "$c")
+              shortc=$(echo $c | cut -c1-7)
+              PR_BODY="${PR_BODY}- ${shortc}: ${msg}\n"
+            done
+
+            gh pr create --base main --head "$bp_branch" --title "$PR_TITLE" --body "$PR_BODY" --label "backport" --repo "${{ github.repository }}"
+            echo "conflict=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Report result
+        run: |
+          if [ "${{ steps.backport.outputs.conflict }}" = "true" ]; then
+            echo "Cherry-pick failed; backport-needed issue and PR comment created."
+          else
+            echo "Cherry-pick succeeded and PR to main has been opened."
+          fi
