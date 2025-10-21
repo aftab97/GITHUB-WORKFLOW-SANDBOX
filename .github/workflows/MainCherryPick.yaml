@@ -86,7 +86,7 @@ jobs:
 
       - name: Prepare authenticated origin for pushing
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.AFTAB }}
         run: |
           # configure remote URL for pushing with GITHUB_TOKEN
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}
@@ -96,7 +96,7 @@ jobs:
       - name: Create backport branch and attempt cherry-pick
         id: backport
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.AFTAB }}
         run: |
           set -euo pipefail
           PR_NUM=${{ env.PR }}
