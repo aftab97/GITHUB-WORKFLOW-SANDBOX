@@ -40,9 +40,9 @@ jobs:
         uses: ./packages/tools/changelog
         with:
           log: ${{ steps.log.outputs.log }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT }}
 
       - name: '🐛 Debug Diff Log'
         run: |
@@ -60,7 +60,7 @@ jobs:
         uses: ./packages/tools/feature-branch-check
         with:
           branch: 'sit'
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
 
       - name: '📝 Generate PR Body'
         id: pr_body
@@ -119,7 +119,7 @@ jobs:
 
           echo "pr_url=$pr_url" >> $GITHUB_OUTPUT
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT }}
 
       - name: '🔍 Find Existing PR (if create failed)'
         id: find_existing
@@ -128,7 +128,7 @@ jobs:
           existing_pr=$(gh pr list --base main --head sit --json url --jq '.[0].url')
           echo "pr_url=$existing_pr" >> $GITHUB_OUTPUT
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT }}
 
       - name: '🔁 Use PR URL'
         id: ensure_pr_url
@@ -139,4 +139,4 @@ jobs:
         run: |
           gh pr edit "${{ steps.ensure_pr_url.outputs.pr_url }}" --body-file pr_body.md
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT }}

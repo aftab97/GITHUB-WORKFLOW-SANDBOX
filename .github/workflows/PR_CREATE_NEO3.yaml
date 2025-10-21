@@ -39,7 +39,7 @@ jobs:
         uses: ./packages/tools/feature-branch-check
         with:
           branch: ${{ steps.extract_branch.outputs.branch }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
 
       - name: '💻 Kebab-Case Branch Name'
         shell: bash
@@ -118,5 +118,5 @@ jobs:
             # Update the PR with the fetched or default title/body
             gh pr edit $PR_EXISTS --title "$PR_TITLE" -b "$PR_BODY"
           fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          env:
+            GITHUB_TOKEN: ${{ secrets.PAT }}
