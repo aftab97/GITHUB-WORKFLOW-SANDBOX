@@ -72,6 +72,8 @@ jobs:
 
       - name: Gather commits from PR
         id: commits
+        env:
+          GITHUB_TOKEN: ${{ secrets.AFTAB }}
         run: |
           PR_NUM=${{ env.PR }}
           if [ -z "$PR_NUM" ]; then
