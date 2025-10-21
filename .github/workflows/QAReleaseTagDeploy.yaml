@@ -1,5 +1,9 @@
 #
+<<<<<<< HEAD
 # adding a example of a hotfix
+=======
+# This is the actual - fix needs to reach master
+>>>>>>> aec5515 (hotfix: DC1231-23)
 # Creates a github release
 # when anything is merged to main
 #
