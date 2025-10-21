@@ -119,4 +119,4 @@ jobs:
             gh pr edit $PR_EXISTS --title "$PR_TITLE" -b "$PR_BODY"
           fi
           env:
-            GITHUB_TOKEN: ${{ secrets.PAT }}
+            GH_TOKEN: ${{ secrets.PAT }}
