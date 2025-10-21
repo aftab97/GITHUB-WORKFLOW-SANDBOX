@@ -98,6 +98,8 @@ jobs:
 
       - name: '📁 Create or Update Pull Request'
         id: plat-pull-request
+        env:
+              GH_TOKEN: ${{ secrets.AFTAB }}
         run: |
           PR_EXISTS=$(gh pr list --head ${{ steps.extract_branch.outputs.branch }} --state open --json url --jq .[].url)
 
@@ -118,5 +120,4 @@ jobs:
             # Update the PR with the fetched or default title/body
             gh pr edit $PR_EXISTS --title "$PR_TITLE" -b "$PR_BODY"
           fi
-            env:
-              GH_TOKEN: ${{ secrets.AFTAB }}
+            
