@@ -115,8 +115,7 @@ jobs:
             --base master \
             --head main \
             --title "(PROD) Release (test)" \
-            --body-file pr_body.md \
-            --label "automated-release-pr" 2>/dev/null)
+            --body-file pr_body.md)
 
           echo "pr_url=$pr_url" >> $GITHUB_OUTPUT
         env:
@@ -136,8 +135,8 @@ jobs:
         run: |
           echo "pr_url=${{ steps.create_pr.outputs.pr_url || steps.find_existing.outputs.pr_url }}" >> $GITHUB_OUTPUT
 
-      - name: '📝 Update Pull Request Description'
-        run: |
-          gh pr edit "${{ steps.ensure_pr_url.outputs.pr_url }}" --body-file pr_body.md
-        env:
-          GH_TOKEN: ${{ secrets.PAT }}
+      # - name: '📝 Update Pull Request Description'
+      #   run: |
+      #     gh pr edit "${{ steps.ensure_pr_url.outputs.pr_url }}" --body-file pr_body.md
+      #   env:
+      #     GH_TOKEN: ${{ secrets.PAT }}
